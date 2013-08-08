@@ -149,4 +149,5 @@ def peval_doclist(txt):
 	try:
 		return uncommonify_doclist(loads(txt))
 	except Exception, e:
+		webnotes.errprint(txt)
 		return uncommonify_doclist(eval(txt))
