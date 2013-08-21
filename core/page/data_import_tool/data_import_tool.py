@@ -9,7 +9,7 @@ import webnotes.model.doctype
 from webnotes.model.meta import get_table_fields
 from webnotes.model.doc import Document
 from webnotes.utils import cstr
-from webnotes.utils.datautils import UnicodeWriter, check_record, import_doc, getlink
+from webnotes.utils.datautils import UnicodeWriter, check_record, import_doc, getlink, cint, flt
 from webnotes import _
 
 data_keys = webnotes._dict({
@@ -287,8 +287,10 @@ def upload():
 						dt = d
 						doctypes.append(d)
 						column_idx_to_fieldname[dt] = {}
+						column_idx_to_fieldtype[dt] = {}
 				if dt:
 					column_idx_to_fieldname[dt][i+1] = rows[row_idx + 2][i+1]
+					column_idx_to_fieldtype[dt][i+1] = rows[row_idx + 4][i+1]
 
 	def get_doclist(start_idx):
 		if doctypes:
@@ -299,11 +301,18 @@ def upload():
 						d = {}
 						for column_idx in column_idx_to_fieldname[dt]:
 							try:
-								d[column_idx_to_fieldname[dt][column_idx]] = rows[idx][column_idx]
+								fieldname = column_idx_to_fieldname[dt][column_idx]
+								fieldtype = column_idx_to_fieldtype[dt][column_idx]
+								
+								d[fieldname] = rows[idx][column_idx]
+								if fieldtype in ("Int", "Check"):
+									d[fieldname] = cint(d[fieldname])
+								elif fieldtype in ("Float", "Currency"):
+									d[fieldname] = flt(d[fieldname])
 							except IndexError, e:
 								pass
 
-						if sum([0 if val=='' else 1 for val in d.values()]):
+						if sum([0 if not val else 1 for val in d.values()]):
 							d['doctype'] = dt
 							if dt != doctype:
 								if not overwrite:
@@ -337,6 +346,7 @@ def upload():
 	doctypes = []
 	doctype_parentfield = {}
 	column_idx_to_fieldname = {}
+	column_idx_to_fieldtype = {}
 
 	parenttype = get_header_row(data_keys.parent_table)
 	

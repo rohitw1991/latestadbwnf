@@ -204,15 +204,6 @@ wn.ui.form.ControlInput = wn.ui.form.Control.extend({
 			me.doctype && me.docname && me.get_value 
 				&& me.parse_validate_and_set_in_model(me.get_value()); } );
 	},
-	bind_save_event: function() {
-		if(this.frm && this.$input) {
-			var me = this;
-			this.$input.keydown("ctrl+s meta+s", function(e) {
-				me.frm.save_or_update();
-				return false;
-			})
-		}
-	},
 	set_label: function(label) {
 		if(label) this.df.label = label;
 		
@@ -262,7 +253,6 @@ wn.ui.form.ControlData = wn.ui.form.ControlInput.extend({
 		this.input = this.$input.get(0);
 		this.has_input = true;
 		this.bind_change_event();
-		this.bind_save_event();
 	},
 	set_input_attributes: function() {
 		this.$input
@@ -630,7 +620,6 @@ wn.ui.form.ControlLink = wn.ui.form.ControlData.extend({
 					me.parse_validate_and_set_in_model(value);
 				}
 			}});
-		this.bind_save_event();
 		this.setup_buttons();
 		this.setup_autocomplete();
 	},
@@ -717,20 +706,31 @@ wn.ui.form.ControlLink = wn.ui.form.ControlData.extend({
 		this.$wrapper.find(".ui-helper-hidden-accessible").remove();
 	},
 	set_custom_query: function(args) {
-		if(this.get_query || this.df.get_query) {
-			var q = (this.get_query || this.df.get_query)(this.frm && this.frm.doc, this.doctype, this.docname);
-
-			if (typeof(q)==="string") {
-				args.query = q;
-			} else if($.isPlainObject(q)) {
-				if(q.filters) {
-					$.each(q.filters, function(key, value) {
-						if(value!==undefined) {
-							q.filters[key] = value || null;
-						}
-					});
+		var set_nulls = function(obj) {
+			$.each(obj, function(key, value) {
+				if(value!==undefined) {
+					obj[key] = value || null;
 				}
-				$.extend(args, q);
+			});
+			return obj;
+		}
+		if(this.get_query || this.df.get_query) {
+			var get_query = this.get_query || this.df.get_query;
+			if($.isPlainObject(get_query)) {
+				$.extend(args, set_nulls(get_query));
+			} else if(typeof(get_query)==="string") {
+				args.query = get_query;
+			} else {
+				var q = (get_query)(this.frm && this.frm.doc, this.doctype, this.docname);
+
+				if (typeof(q)==="string") {
+					args.query = q;
+				} else if($.isPlainObject(q)) {
+					if(q.filters) {
+						set_nulls(q.filters);
+					}
+					$.extend(args, q);
+				}
 			}
 		}
 	},

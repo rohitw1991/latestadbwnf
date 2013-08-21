@@ -334,6 +334,13 @@ wn.views.GridReport = Class.extend({
 		});
 	},
 	
+	round_off_data: function() {
+		var me = this;
+		$.each(this.data, function(i, d) {
+			me.round_item_values(d);
+		});
+	},
+	
 	refresh: function() {
 		this.waiting.toggle(false);
 		if(!this.grid_wrapper) 
@@ -344,6 +351,7 @@ wn.views.GridReport = Class.extend({
 		this.setup_dataview_columns();
 		this.apply_link_formatters();
 		this.prepare_data();
+		this.round_off_data();
 		this.prepare_data_view();
 		// plot might need prepared data
 		this.wrapper.find(".processing").toggle(true);
@@ -661,6 +669,7 @@ wn.views.GridReportWithPlot = wn.views.GridReport.extend({
 			return;
 		}
 		wn.require('lib/js/lib/flot/jquery.flot.js');
+		wn.require('lib/js/lib/flot/jquery.flot.downsample.js');
 		
 		this.plot = $.plot(this.plot_area.toggle(true), plot_data,
 			this.get_plot_options());
@@ -754,7 +763,8 @@ wn.views.GridReportWithPlot = wn.views.GridReport.extend({
 			grid: { hoverable: true, clickable: true },
 			xaxis: { mode: "time", 
 				min: dateutil.str_to_obj(this.from_date).getTime(),
-				max: dateutil.str_to_obj(this.to_date).getTime() }
+				max: dateutil.str_to_obj(this.to_date).getTime() },
+			series: { downsample: { threshold: 1000 } }
 		}
 	}
 });

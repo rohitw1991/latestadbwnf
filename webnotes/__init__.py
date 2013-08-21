@@ -31,16 +31,15 @@ def _(msg):
 
 def set_user_lang(user, user_language=None):
 	global lang, user_lang
-	try:
-		from startup import lang_list, lang_names
-	except ImportError:
-		return
-	
+	from startup import lang_list, lang_names
+		
 	if not user_language:
 		user_language = conn.get_value("Profile", user, "language")
+		
 	if user_language and (user_language.lower() in lang_names):
 		lang = lang_names[user_language.lower()]
 		user_lang = True
+		
 
 def load_translations(module, doctype, name):
 	from webnotes.translate import load_doc_messages
@@ -60,6 +59,7 @@ error_log = []
 debug_log = []
 message_log = []
 mute_emails = False
+mute_messages = False
 test_objects = {}
 request_method = None
 print_messages = False
@@ -67,6 +67,7 @@ user_lang = False
 lang = 'en'
 in_import = False
 in_test = False
+rollback_on_exception = False
 
 # memcache
 
@@ -110,6 +111,20 @@ def log(msg):
 	debug_log.append(cstr(msg))
 
 def msgprint(msg, small=0, raise_exception=0, as_table=False):
+	def _raise_exception():
+		if raise_exception:
+			if rollback_on_exception:
+				conn.rollback()
+			import inspect
+			if inspect.isclass(raise_exception) and issubclass(raise_exception, Exception):
+				raise raise_exception, msg
+			else:
+				raise ValidationError, msg
+
+	if mute_messages:
+		_raise_exception()
+		return
+
 	from utils import cstr
 	if as_table and type(msg) in (list, tuple):
 		msg = '<table border="1px" style="border-collapse: collapse" cellpadding="2px">' + ''.join(['<tr>'+''.join(['<td>%s</td>' % c for c in r])+'</tr>' for r in msg]) + '</table>'
@@ -118,12 +133,7 @@ def msgprint(msg, small=0, raise_exception=0, as_table=False):
 		print "Message: " + repr(msg)
 	
 	message_log.append((small and '__small:' or '')+cstr(msg or ''))
-	if raise_exception:
-		import inspect
-		if inspect.isclass(raise_exception) and issubclass(raise_exception, Exception):
-			raise raise_exception, msg
-		else:
-			raise ValidationError, msg
+	_raise_exception()
 
 def throw(msg, exc=ValidationError):
 	msgprint(msg, raise_exception=exc)
@@ -314,7 +324,11 @@ def doc(doctype=None, name=None, fielddata=None):
 def new_doc(doctype, parent_doc=None, parentfield=None):
 	from webnotes.model.create_new import get_new_doc
 	return get_new_doc(doctype, parent_doc, parentfield)
-	
+
+def new_bean(doctype):
+	from webnotes.model.create_new import get_new_doc
+	return bean([get_new_doc(doctype)])
+
 def doclist(lst=None):
 	from webnotes.model.doclist import DocList
 	return DocList(lst)
@@ -326,6 +340,10 @@ def bean(doctype=None, name=None, copy=None):
 		return Bean(copy_doclist(copy))
 	else:
 		return Bean(doctype, name)
+
+def set_value(doctype, docname, fieldname, value):
+	import webnotes.client
+	return webnotes.client.set_value(doctype, docname, fieldname, value)
 
 def get_doclist(doctype, name=None):
 	return bean(doctype, name).doclist
