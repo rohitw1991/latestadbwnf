@@ -3,9 +3,7 @@
 
 from __future__ import unicode_literals
 
-import os
 import conf
-from startup.webutils import *
 import webnotes
 import webnotes.utils
 
@@ -114,12 +112,19 @@ def build_html(args):
 	
 	return html
 	
-def get_standard_pages():
-	return webnotes.get_config()["web"]["pages"].keys()
-	
 def prepare_args(page_name):
+
+	has_app = True
+	try:
+		from startup.webutils import update_template_args, get_home_page
+	except ImportError:
+		has_app = False
+
 	if page_name == 'index':
-		page_name = get_home_page()
+		if has_app:
+			page_name = get_home_page()
+		else:
+			page_name = "login"
 	
 	pages = get_page_settings()
 	
@@ -137,15 +142,14 @@ def prepare_args(page_name):
 			bean = webnotes.bean(page_info["args_doctype"])
 			bean.run_method("onload")
 			args.obj = bean.make_controller()
-			
-
 	else:
 		args = get_doc_fields(page_name)
 	
 	if not args:
 		return False
 	
-	update_template_args(page_name, args)
+	if has_app:
+		args = update_template_args(page_name, args)
 	
 	return args	
 
@@ -231,4 +235,24 @@ def get_generators():
 def get_page_settings():
 	return webnotes.get_config()["web"]["pages"]
 	
+def get_portal_links():
+	portal_args = {}
+	for page, opts in webnotes.get_config()["web"]["pages"].items():
+		if opts.get("portal"):
+			portal_args[opts["portal"]["doctype"]] = {
+				"page": page,
+				"conditions": opts["portal"].get("conditions")
+			}
+	
+	return portal_args
 
+_is_portal_enabled = None
+def is_portal_enabled():
+	global _is_portal_enabled
+	if _is_portal_enabled is None:
+		_is_portal_enabled = True
+		if webnotes.utils.cint(webnotes.conn.get_value("Website Settings", 
+			"Website Settings", "disable_signup")):
+				_is_portal_enabled = False
+		
+	return _is_portal_enabled

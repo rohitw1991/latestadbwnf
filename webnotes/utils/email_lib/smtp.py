@@ -11,14 +11,13 @@ import webnotes
 import conf
 from webnotes import msgprint
 from webnotes.utils import cint
-import email
 
-def get_email(recipients, sender='', msg='', subject='[No Subject]', text_content = None):
+def get_email(recipients, sender='', msg='', subject='[No Subject]', text_content = None, footer=None):
 	"""send an html email as multipart with attachments and all"""
 	email = EMail(sender, recipients, subject)
 	if (not '<br>' in msg) and (not '<p>' in msg) and (not '<div' in msg):
 		msg = msg.replace('\n', '<br>')
-	email.set_html(msg, text_content)
+	email.set_html(msg, text_content, footer=footer)
 
 	return email
 
@@ -51,10 +50,10 @@ class EMail:
 		self.cc = []
 		self.html_set = False
 	
-	def set_html(self, message, text_content = None):
+	def set_html(self, message, text_content = None, footer=None):
 
 		"""Attach message in the html portion of multipart/alternative"""
-		message = message + self.get_footer()
+		message = message + self.get_footer(footer)
 
 		# this is the first html part of a multi-part message, 
 		# convert to text well
@@ -101,11 +100,11 @@ class EMail:
 		
 		self.msg_root.attach(part)
 	
-	def get_footer(self):
+	def get_footer(self, footer=None):
 		"""append a footer (signature)"""
 		import startup
 		
-		footer = ""		
+		footer = footer or ""
 		footer += webnotes.conn.get_value('Control Panel',None,'mail_footer') or ''
 		footer += getattr(startup, 'mail_footer', '')
 		
@@ -162,19 +161,12 @@ class EMail:
 	
 	def validate(self):
 		"""validate the email ids"""
-		from webnotes.utils import validate_email_add, extract_email_id
+		from webnotes.utils import validate_email_add
 		def _validate(email):
 			"""validate an email field"""
-			if email:
-				if "," in email:
-					email = email.split(",")[-1]
-				if not validate_email_add(email):
-					# try extracting the email part and set as sender
-					new_email = extract_email_id(email)
-					if not (new_email and validate_email_add(new_email)):
-						webnotes.msgprint("%s is not a valid email id" % email,
-							raise_exception = 1)
-					email = new_email
+			if email and not validate_email_add(email):
+				webnotes.msgprint("%s is not a valid email id" % email,
+					raise_exception = 1)
 			return email
 		
 		if not self.sender:
@@ -227,8 +219,12 @@ class EMail:
 			smtpserver.sess.sendmail(self.sender, self.recipients + (self.cc or []),
 				self.as_string())
 				
-		except smtplib.SMTPSenderRefused, e:
+		except smtplib.SMTPSenderRefused:
 			webnotes.msgprint("""Invalid Outgoing Mail Server's Login Id or Password. \
+				Please rectify and try again.""",
+				raise_exception=webnotes.OutgoingEmailError)
+		except smtplib.SMTPRecipientsRefused:
+			webnotes.msgprint("""Invalid Recipient (To) Email Address. \
 				Please rectify and try again.""",
 				raise_exception=webnotes.OutgoingEmailError)
 

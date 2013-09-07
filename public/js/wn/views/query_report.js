@@ -67,7 +67,7 @@ wn.views.QueryReport = Class.extend({
 		}, "icon-edit");
 		
 		if(!in_list(user_roles, "System Manager")) {
-			edit_btn.attr("disabled", "disabled")
+			edit_btn.prop("disabled", true)
 				.attr("title", wn._("Only System Manager can create / edit reports"));
 		}
 
@@ -124,7 +124,7 @@ wn.views.QueryReport = Class.extend({
 	},
 	clear_filters: function() {
 		this.filters = [];
-		this.appframe.$w.find('.navbar .filters').remove();
+		this.appframe.$w.find('.appframe-form .filters').remove();
 	},
 	set_filters_by_name: function() {
 		this.filters_by_name = {};

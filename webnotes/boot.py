@@ -11,6 +11,7 @@ import webnotes.defaults
 import webnotes.model.doc
 import webnotes.widgets.page
 import json
+import webnotes.webutils
 
 def get_bootinfo():
 	"""build and return boot info"""
@@ -42,11 +43,11 @@ def get_bootinfo():
 		tabDocType where ifnull(icon,'')!=''"""))
 	bootinfo.doctype_icons.update(dict(webnotes.conn.sql("""select name, icon from 
 		tabPage where ifnull(icon,'')!=''""")))
-
+	
 	add_home_page(bootinfo, doclist)
 	add_allowed_pages(bootinfo)
 	load_translations(bootinfo)
-	load_country_and_currency(bootinfo, doclist)
+	load_conf_settings(bootinfo)
 
 	# ipinfo
 	if webnotes.session['data'].get('ipinfo'):
@@ -66,14 +67,11 @@ def get_bootinfo():
 	bootinfo['docs'] = compress(bootinfo['docs'])
 	
 	return bootinfo
-	
-def load_country_and_currency(bootinfo, doclist):
-	if bootinfo.control_panel.country and \
-		webnotes.conn.exists("Country", bootinfo.control_panel.country):
-		doclist += [webnotes.doc("Country", bootinfo.control_panel.country)]
-		
-	doclist += webnotes.conn.sql("""select * from tabCurrency
-		where ifnull(enabled,0)=1""", as_dict=1, update={"doctype":":Currency"})
+
+def load_conf_settings(bootinfo):
+	import conf
+	for key in ['developer_mode']:
+		if hasattr(conf, key): bootinfo[key] = getattr(conf, key)
 
 def add_allowed_pages(bootinfo):
 	bootinfo.page_info = dict(webnotes.conn.sql("""select distinct parent, modified from `tabPage Role`
